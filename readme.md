@@ -38,4 +38,6 @@ constrained systems.
 
 samething makes use of specialized toolchains which are suitable for development
 and deployment. For more information, navigate to the `toolchains` folder and
-select your host system for instructions.
+select your host system for instructions. Not using the provided toolchain is
+entirely unsupported, and I wish you the best of luck if you're going that
+route.
