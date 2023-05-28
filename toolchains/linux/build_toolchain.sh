@@ -81,9 +81,10 @@ usage() {
   echo "  -u, --unattended    Accept all prompts, useful for CI. Default is off."
   echo "  --use-lto           Compile the toolchain with link-time optimization"
   echo "                      enabled. The toolchain will be faster, but the "
-  echo "                      build time will be much slower. Default is off."
-  echo "  -v, --verbose        Do not suppress console output of external "
-  echo "                       programs; default is off."
+  echo "                      build time will be much slower and much more"
+  echo "                      intensive on the host. Default is off."
+  echo "  -v, --verbose       Do not suppress console output of external "
+  echo "                      programs; default is off."
 }
 
 options=$(getopt -l "staging-dir:,target-dir:,help,verbose" -o "s:t:uhv" -a -- "$@")
@@ -161,6 +162,7 @@ if [ "$UNATTENDED" = false ]; then
     echo
 
     if [[ $REPLY =~ ^[Yy] ]]; then
+      echo
       break
     elif [[ $REPLY =~ ^[Nn] ]]; then
       >&2 echo "Aborting due to required software not being installed."
@@ -185,7 +187,8 @@ cd "${STAGING_DIR}" || return
 
 echo "Downloading CMake v${CMAKE_VER}..."
 
-wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/cmake-${CMAKE_VER}.tar.gz"
+curl -sLO "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/cmake-${CMAKE_VER}.tar.gz"
+
 echo "Extracting CMake v${CMAKE_VER}..."
 
 if [ "$VERBOSE" = true ]; then
@@ -210,16 +213,8 @@ else
   cmake -S . -B build -G Ninja "${CMAKE_BUILD_FLAGS[@]}" >& /dev/null
 fi
 
-echo "Building CMake v${CMAKE_VER}, this may take a while."
+echo "Building and installing CMake v${CMAKE_VER}, this may take a while."
 cd build || return
-
-if [ "$VERBOSE" = true ]; then
-  ninja
-else
-  ninja >& /dev/null
-fi
-
-echo "Installing CMake v${CMAKE_VER} into target directory..."
 
 if [ "$VERBOSE" = true ]; then
   ninja install
