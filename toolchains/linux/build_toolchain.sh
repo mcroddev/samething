@@ -58,6 +58,14 @@ error_occurred() {
 # When an error occurs, call the `error_occurred` function.
 trap "error_occurred" ERR
 
+directory_create() {
+  if [ "$VERBOSE" = true ]; then
+    mkdir -v "$1"
+  else
+    mkdir "$1"
+  fi
+}
+
 usage() {
   echo "Usage: ./build_toolchain.sh [OPTIONS]"
   echo
@@ -78,16 +86,8 @@ usage() {
   echo "                       programs; default is off."
 }
 
-# $@ is all command line parameters passed to the script.
-# -o is for short options like -v
-# -l is for long options with double dash like --version
-# the comma separates different long options
-# -a is for long options with single dash like -version
 options=$(getopt -l "staging-dir:,target-dir:,help,verbose" -o "s:t:uhv" -a -- "$@")
 
-# set --:
-# If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
-# are set to the arguments, even if some of them begin with a ‘-’.
 eval set -- "$options"
 
 while true
@@ -104,7 +104,7 @@ while true
       ;;
 
     -u|--use-lto)
-      USE_LTO=1
+      USE_LTO=true
       ;;
 
     -h|--help)
@@ -113,7 +113,7 @@ while true
       ;;
 
     -v|--verbose)
-      VERBOSE=1
+      VERBOSE=true
       ;;
     --)
       shift
@@ -123,12 +123,14 @@ while true
 done
 
 if [ -z "$STAGING_DIR" ]; then
-  >&2 echo "Staging directory not specified; aborting."
+  >&2 echo "Staging directory not specified."
+  usage
   exit 1
 fi
 
 if [ -z "$TARGET_DIR" ]; then
-  >&2 echo "Target directory not specified; aborting."
+  >&2 echo "Target directory not specified."
+  usage
   exit 1
 fi
 
@@ -169,12 +171,58 @@ if [ "$UNATTENDED" = false ]; then
   done
 fi
 
-printf "Creating staging directory %s... \n" "${STAGING_DIR}"
+# Resolve relative to absolute paths.
+STAGING_DIR=$(realpath "${STAGING_DIR}")
+TARGET_DIR=$(realpath "${TARGET_DIR}")
 
-if [ "$VERBOSE" = true ]; then
-  mkdir -v "${STAGING_DIR}"
-else
-  mkdir "${STAGING_DIR}"
-fi
+echo "Creating staging directory ${STAGING_DIR}..."
+directory_create "${STAGING_DIR}"
+
+echo "Creating target directory ${TARGET_DIR}..."
+directory_create "${TARGET_DIR}"
 
 cd "${STAGING_DIR}" || return
+
+echo "Downloading CMake v${CMAKE_VER}..."
+
+wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/cmake-${CMAKE_VER}.tar.gz"
+echo "Extracting CMake v${CMAKE_VER}..."
+
+if [ "$VERBOSE" = true ]; then
+  tar xvf "cmake-${CMAKE_VER}.tar.gz"
+else
+  tar xf "cmake-${CMAKE_VER}.tar.gz"
+fi
+
+cd cmake-${CMAKE_VER} || return
+echo "Configuring CMake v${CMAKE_VER}, please wait..."
+
+CMAKE_BUILD_FLAGS=(-DCMAKE_BUILD_TYPE:STRING=Release
+                   -DCMAKE_INSTALL_PREFIX:STRING="${TARGET_DIR}"/cmake)
+
+if [ "$USE_LTO" = true ]; then
+  CMAKE_BUILD_FLAGS+=(-DCMake_BUILD_LTO:BOOL=ON)
+fi
+
+if [ "$VERBOSE" = true ]; then
+  cmake -S . -B build -G Ninja "${CMAKE_BUILD_FLAGS[@]}"
+else
+  cmake -S . -B build -G Ninja "${CMAKE_BUILD_FLAGS[@]}" >& /dev/null
+fi
+
+echo "Building CMake v${CMAKE_VER}, this may take a while."
+cd build || return
+
+if [ "$VERBOSE" = true ]; then
+  ninja
+else
+  ninja >& /dev/null
+fi
+
+echo "Installing CMake v${CMAKE_VER} into target directory..."
+
+if [ "$VERBOSE" = true ]; then
+  ninja install
+else
+  ninja install >& /dev/null
+fi
