@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # SPDX-License-Identifier: MIT
 #
@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 # This script is to be used to build a toolchain suitable for developing and
-# deploying samething. It is to be used on host Linux systems.
+# deploying samething. It is to be used on host Unix(-like) systems.
 
 # When pushing a commit to CI, it will check if any of these variables have
 # changed since the last commit. If they have, the toolchain is rebuilt.
@@ -34,7 +34,7 @@ CMAKE_VER="3.26.4"
 QT_VER="6.5.0"
 
 # The architectures which are supported by the toolchain.
-SUPPORTED_ARCHS=(AArch64 X86)
+SUPPORTED_ARCHS="AArch64 X86"
 
 PROJECT_NAME="samething"
 
@@ -50,13 +50,8 @@ UNATTENDED=false
 # Do not suppress console output of external programs.
 VERBOSE=false
 
-# The function to call when an error has occurred.
-error_occurred() {
-  exit 1
-}
-
-# When an error occurs, call the `error_occurred` function.
-trap "error_occurred" ERR
+# Immediately exit if any command fails.
+set -e
 
 directory_create() {
   if [ "$VERBOSE" = true ]; then
@@ -87,7 +82,7 @@ usage() {
   echo "                      programs; default is off."
 }
 
-options=$(getopt -l "staging-dir:,target-dir:,help,verbose" -o "s:t:uhv" -a -- "$@")
+options=$(getopt -l "staging-dir:,target-dir:,use-lto,unattended,help,verbose" -o "s:t:luhv" -a -- "$@")
 
 eval set -- "$options"
 
@@ -104,8 +99,12 @@ while true
       TARGET_DIR="$1"
       ;;
 
-    -u|--use-lto)
+    -l|--use-lto)
       USE_LTO=true
+      ;;
+
+    -u|--unattended)
+      UNATTENDED=true
       ;;
 
     -h|--help)
@@ -158,13 +157,13 @@ if [ "$UNATTENDED" = false ]; then
 
   while true
   do
-    read -p "Have you installed this software? [Y/N] " -n 1 -r
-    echo
+    printf "Have you installed this software? [Y/N] "
+    read -r REPLY
 
-    if [[ $REPLY =~ ^[Yy] ]]; then
+    if expr "$REPLY" : '^[Yy]' 1>/dev/null; then
       echo
       break
-    elif [[ $REPLY =~ ^[Nn] ]]; then
+    elif expr "$REPLY" : '^[Nn]' 1>/dev/null; then
       >&2 echo "Aborting due to required software not being installed."
       exit 1
     else
@@ -200,17 +199,16 @@ fi
 cd cmake-${CMAKE_VER} || return
 echo "Configuring CMake v${CMAKE_VER}, please wait..."
 
-CMAKE_BUILD_FLAGS=(-DCMAKE_BUILD_TYPE:STRING=Release
-                   -DCMAKE_INSTALL_PREFIX:STRING="${TARGET_DIR}"/cmake)
+CMAKE_BUILD_FLAGS="-DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:STRING=""${TARGET_DIR}""/cmake"
 
 if [ "$USE_LTO" = true ]; then
-  CMAKE_BUILD_FLAGS+=(-DCMake_BUILD_LTO:BOOL=ON)
+  CMAKE_BUILD_FLAGS="$CMAKE_BUILD_FLAGS -DCMake_BUILD_LTO:BOOL=ON"
 fi
 
 if [ "$VERBOSE" = true ]; then
-  cmake -S . -B build -G Ninja "${CMAKE_BUILD_FLAGS[@]}"
+  cmake -S . -B build -G Ninja ${CMAKE_BUILD_FLAGS}
 else
-  cmake -S . -B build -G Ninja "${CMAKE_BUILD_FLAGS[@]}" >& /dev/null
+  cmake -S . -B build -G Ninja ${CMAKE_BUILD_FLAGS} 2>/dev/null
 fi
 
 echo "Building and installing CMake v${CMAKE_VER}, this may take a while."
@@ -219,5 +217,5 @@ cd build || return
 if [ "$VERBOSE" = true ]; then
   ninja install
 else
-  ninja install >& /dev/null
+  ninja install 2>/dev/null
 fi
