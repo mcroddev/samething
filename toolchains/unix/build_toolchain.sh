@@ -28,6 +28,7 @@
 # When pushing a commit to CI, it will check if any of these variables have
 # changed since the last commit. If they have, the toolchain is rebuilt.
 
+NINJA_VER="1.11.1"
 LLVM_VER="16.0.3"
 GCC_VER="13.0.1"
 CMAKE_VER="3.26.4"
@@ -67,10 +68,14 @@ tarball_extract() {
 }
 
 download_file() {
-  if [ "$VERBOSE" = true ]; then
-    curl -gLO "$1"
-  else
-    curl -gsLO "$1"
+  curl_flags="-gLO"
+
+  if [ "$VERBOSE" = false ]; then
+    curl_flags="${curl_flags}s"
+  fi
+
+  if ! curl "${curl_flags}" "$1"; then
+    exit 1
   fi
 }
 
@@ -244,5 +249,45 @@ if ! cd build; then
   exit 1
 fi
 
-V ninja install
+if ! V ninja install; then
+  exit 1
+fi
+
 echo "Installation of CMake v${CMAKE_VER} complete."
+
+if ! cd "${STAGING_DIR}"; then
+  exit 1
+fi
+
+echo "Downloading ninja v${NINJA_VER}..."
+download_file "https://github.com/ninja-build/ninja/archive/refs/tags/v${NINJA_VER}.tar.gz"
+
+echo "Extracting ninja v${NINJA_VER}..."
+tarball_extract "v${NINJA_VER}.tar.gz"
+
+if ! cd "ninja-${NINJA_VER}"; then
+  exit 1
+fi
+
+# Regardless of whether or not LTO is enabled by this script, Ninja will enforce
+# LTO if the compiler supports it (which it should). This shouldn't cause harm,
+# ninja is quite small to begin with.
+NINJA_BUILD_FLAGS="-DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:STRING=""${TARGET_DIR}""/ninja"
+
+echo "Configuring ninja v${NINJA_VER}, please wait..."
+
+if ! V cmake -S . -B build -G Ninja $NINJA_BUILD_FLAGS; then
+  exit 1
+fi
+
+echo "Building and installing ninja v${NINJA_VER}, this may take a while."
+
+if ! cd build; then
+  exit 1
+fi
+
+if ! V ninja install; then
+  exit 1
+fi
+
+echo "Installation of ninja v${NINJA_VER} complete."
