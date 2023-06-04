@@ -27,8 +27,58 @@
 # All toolchains ship with CMake 3.26.4, so this is safe.
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
+if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
+  message(FATAL_ERROR "In-source builds are not supported.")
+endif()
+
 project(samething
         VERSION 1.0.0.0
         DESCRIPTION "Specific Area Message Encoding header generator"
         HOMEPAGE_URL "https://github.com/mcroddev/samething"
         LANGUAGES CXX)
+
+if (NOT CMAKE_TOOLCHAIN_FILE)
+  message(FATAL_ERROR "You must specify a toolchain file via "
+                      "-DCMAKE_TOOLCHAIN_FILE.")
+endif()
+
+option(SAMETHING_BUILD_TESTS "Build the unit tests" OFF)
+option(SAMETHING_BUILD_BENCHMARKS "Build the benchmarks" OFF)
+option(SAMETHING_USE_LTO "Build with link-time optimization (LTO)" OFF)
+option(SAMETHING_BUILD_QT_FRONTEND "Build the Qt frontend" OFF)
+
+if (SAMETHING_BUILD_TESTS)
+  # Since googletest follows the Abseil Live at Head philosophy, this is the
+  # only "right" way to pull it in.
+  include(FetchContent)
+
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG main
+  )
+  FetchContent_MakeAvailable(googletest)
+endif()
+
+# Set the default build type if one wasn't specified.
+# https://www.kitware.com//cmake-and-the-default-build-type/
+#
+# For development, this is set to "Debug".
+# For deployed production releases, this is set to "Release".
+set(BUILD_TYPE_DEFAULT "Debug")
+
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${BUILD_TYPE_DEFAULT}' as none "
+                 "was specified.")
+
+  set_property(CACHE CMAKE_BUILD_TYPE
+               PROPERTY VALUE “${BUILD_TYPE_DEFAULT}”)
+
+  # Set the possible values of build type for cmake-gui.
+  set_property(CACHE CMAKE_BUILD_TYPE
+               PROPERTY STRINGS
+               "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# Continue with the build process.
+add_subdirectory(src)
