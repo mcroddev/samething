@@ -151,12 +151,12 @@ command_line_arguments_handle() {
   done
 
   if [ -z "$staging_dir" ]; then
-    >&2 echo "Staging directory not specified."
+    echo "Staging directory not specified." >&2
     usage 1
   fi
 
   if [ -z "$target_dir" ]; then
-    >&2 echo "Target directory not specified."
+    echo "Target directory not specified." >&2
     usage 1
   fi
 
@@ -289,7 +289,7 @@ EOF
 
 check_required() {
   for required in cmake ninja gcc clang; do
-    if command -v "$required" >/dev/null; then
+    if ! command -v "$required" >/dev/null; then
       echo "Required command ${required} not found."
       "$required" >&2
       set -- "$@"

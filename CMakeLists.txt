@@ -47,6 +47,19 @@ option(SAMETHING_BUILD_BENCHMARKS "Build the benchmarks" OFF)
 option(SAMETHING_USE_LTO "Build with link-time optimization (LTO)" OFF)
 option(SAMETHING_BUILD_QT_FRONTEND "Build the Qt frontend" OFF)
 
+set(SAMETHING_COMPILER_SUITE "LLVM"
+    CACHE STRING "Specifies the compiler suite to use.")
+
+set_property(CACHE SAMETHING_COMPILER_SUITE
+             PROPERTY STRINGS
+             "GNU" "LLVM")
+
+if (NOT SAMETHING_COMPILER_SUITE STREQUAL "LLVM" AND
+    NOT SAMETHING_COMPILER_SUITE STREQUAL "GNU")
+  message(FATAL_ERROR "Invalid compiler suite specified; valid options are GNU "
+                      "or LLVM.")
+endif()
+
 if (SAMETHING_BUILD_TESTS)
   # Since googletest follows the Abseil Live at Head philosophy, this is the
   # only "right" way to pull it in.
