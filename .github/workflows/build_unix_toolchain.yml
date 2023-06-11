@@ -21,6 +21,7 @@ jobs:
           version: 1.0
 
       - name: Build toolchain
+        uses: actions/checkout@v3
         run: |
           sh ${GITHUB_WORKSPACE}/toolchains/unix/build_toolchain.sh \
              --staging-dir=staging \
