@@ -5,6 +5,9 @@ on:
     paths:
       - toolchains/unix/build_toolchain.sh
 
+  # Allow developers to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
 jobs:
   install_dependencies:
     name: Install toolchain build dependencies
