@@ -23,10 +23,14 @@
 # SOFTWARE.
 
 # This script is to be used to build a toolchain suitable for developing and
-# deploying samething. It is to be used on host Unix(-like) systems.
+# deploying samething. It is to be used on certain host Unix(-like) systems.
 
-# When pushing a commit to CI, it will check if any of these variables have
-# changed since the last commit. If they have, the toolchain is rebuilt.
+# When pushing a commit, CI will check if this toolchain script has been
+# changed. If it has, the toolchain is rebuilt.
+#
+# To reduce memory usage and have a faster compilation speed of the toolchain,
+# all software is compiled with LLVM, except gcc.
+
 llvm_ver="16.0.5"
 gcc_ver="13.0.1"
 cmake_ver="3.26.4"
@@ -141,7 +145,7 @@ command_line_arguments_handle() {
 	;;
 
       -?*)
-        printf 'Ignoring unknown option %s\n' "$1" >&2
+        echo "Ignoring unknown option: ${1}" >&2
 	;;
 
       *)
@@ -192,7 +196,7 @@ cmake_build() {
     set -- "$@" "-DCMake_BUILD_LTO:BOOL=ON"
   fi
 
-  if ! V cmake -S . -B build -G Ninja "$@"; then
+  if ! LDFLAGS='-fuse-ld=lld' V cmake -S . -B build -G Ninja "$@"; then
     exit 1
   fi
 
@@ -224,14 +228,9 @@ ninja_build() {
     exit 1
   fi
 
-  # Regardless of whether or not LTO is enabled by this script, Ninja will
-  # enforce LTO if the compiler supports it (which it should). This shouldn't
-  # cause harm; ninja is quite small to begin with.
-  ninja_build_flags="-DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:STRING=""${target_dir}""/ninja"
-
   echo "Configuring ninja v${ninja_ver}, please wait..."
 
-  if ! V cmake -S . -B build -G Ninja $ninja_build_flags; then
+  if ! LDFLAGS='-fuse-ld=lld' V cmake -S . -B build -G Ninja "$@"; then
     exit 1
   fi
 
@@ -258,6 +257,38 @@ llvm_build() {
 
   echo "Extracting LLVM ${llvm_ver}..."
   tarball_extract "llvm-project-${llvm_ver}.src.tar.xz"
+
+  if ! cp ../cmake/llvm-stage1.cmake llvm-project-${llvm_ver}.src/clang/cmake/caches; then
+    exit 1
+  fi
+
+  if ! cp ../cmake/llvm-stage2.cmake llvm-project-${llvm_ver}.src/clang/cmake/caches; then
+    exit 1
+  fi
+
+  if ! cd llvm-project-${llvm_ver}.src; then
+    exit 1
+  fi
+
+  if [ "$use_lto" = true ]; then
+    set -- "$@" "-DSAMETHING_TOOLCHAIN_ENABLE_LTO:BOOL=ON"
+  fi
+
+  if ! LDFLAGS='-fuse-ld=lld' V cmake -S llvm -B build -G Ninja -C clang/cmake/caches/llvm-stage1.cmake "$@"; then
+    exit 1
+  fi
+
+  if ! cd build; then
+    exit 1
+  fi
+
+  if ! V ninja stage2-distribution; then
+    exit 1
+  fi
+
+  if ! V ninja stage2-install-distribution-stripped; then
+    exit 1
+  fi
 }
 
 usage() {
@@ -288,7 +319,7 @@ EOF
 }
 
 check_required() {
-  for required in cmake ninja gcc clang; do
+  for required in cmake ninja gcc clang lld; do
     if ! command -v "$required" >/dev/null; then
       echo "Required command ${required} not found."
       "$required" >&2
@@ -338,6 +369,6 @@ if ! cd "${staging_dir}"; then
   exit 1
 fi
 
-cmake_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=${target_dir}/cmake"
-ninja_build
-llvm_build
+cmake_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=${target_dir}/cmake" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
+ninja_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=${target_dir}/ninja" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
+llvm_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=""${target_dir}""/llvm" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
