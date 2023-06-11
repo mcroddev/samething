@@ -17,16 +17,16 @@ jobs:
       - name: Install toolchain build dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: build-essential ninja-build clang llvm
+          packages: build-essential ninja-build clang llvm re2c
           version: 1.0
 
       - name: Clone repository
         uses: actions/checkout@v3
 
       - name: Build toolchain
-        run: |
-          sh ${GITHUB_WORKSPACE}/toolchains/unix/build_toolchain.sh \
-             --staging-dir=staging \
-             --target-dir=target \
-             --use-lto \
+        run: >
+          sh ${GITHUB_WORKSPACE}/toolchains/unix/build_toolchain.sh
+             --staging-dir=staging
+             --target-dir=target
+             --use-lto
              --verbose
