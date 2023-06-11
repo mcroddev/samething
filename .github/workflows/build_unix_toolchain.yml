@@ -20,8 +20,10 @@ jobs:
           packages: build-essential ninja-build clang llvm
           version: 1.0
 
-      - name: Build toolchain
+      - name: Clone repository
         uses: actions/checkout@v3
+
+      - name: Build toolchain
         run: |
           sh ${GITHUB_WORKSPACE}/toolchains/unix/build_toolchain.sh \
              --staging-dir=staging \
