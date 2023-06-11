@@ -1,0 +1,11 @@
+name: Build Unix toolchain
+run-name: test
+
+on: [push]
+
+jobs:
+  Install-Dependencies:
+    runs-on: ubuntu-22.04
+    steps:
+      - sudo apt update -y
+      - sudo apt install build-essential ninja clang llvm -y
