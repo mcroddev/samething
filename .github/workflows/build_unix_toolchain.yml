@@ -1,0 +1,23 @@
+name: Create Unix toolchain
+
+on:
+  push:
+    paths:
+      - toolchains/unix/build_toolchain.sh
+
+jobs:
+  install_dependencies:
+    name: Install toolchain build dependencies
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential ninja-build clang llvm
+          version: 1.0
+
+  build_toolchain:
+    name: Build toolchain
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - run: sh ${GITHUB_WORKSPACE}/toolchains/unix/build_toolchain.sh --staging-dir=staging --target-dir=target --use-lto --verbose
