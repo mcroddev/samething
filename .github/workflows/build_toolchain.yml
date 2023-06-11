@@ -7,5 +7,5 @@ jobs:
   Install-Dependencies:
     runs-on: ubuntu-22.04
     steps:
-      - run: sudo apt update -y
-      - run: sudo apt install build-essential ninja clang llvm -y
+      - run: sudo apt-get update -y
+      - run: sudo apt-get install build-essential ninja-build clang llvm -y
