@@ -9,18 +9,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  install_dependencies:
-    name: Install toolchain build dependencies
+  build_and_deploy:
+    name: Build and deploy toolchain for Unix systems
     runs-on: ubuntu-22.04
+
     steps:
+      - name: Install toolchain build dependencies
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: build-essential ninja-build clang llvm
           version: 1.0
 
-  build_toolchain:
-    name: Build toolchain
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v3
+      - name: Build toolchain
       - run: sh ${GITHUB_WORKSPACE}/toolchains/unix/build_toolchain.sh --staging-dir=staging --target-dir=target --use-lto --verbose
