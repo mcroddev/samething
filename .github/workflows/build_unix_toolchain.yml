@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build toolchain
-        working-directory: ${GITHUB_WORKSPACE}/toolchains/unix
+        working-directory: ${{ github.workspace }}/toolchains/unix
         run: |
           sh build_toolchain.sh \
              --staging-dir=staging \
