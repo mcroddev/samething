@@ -73,6 +73,17 @@ if (SAMETHING_BUILD_TESTS)
   FetchContent_MakeAvailable(googletest)
 endif()
 
+if (SAMETHING_BUILD_BENCHMARKS)
+  include(FetchContent)
+
+  FetchContent_Declare(
+    benchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG v1.8.0
+  )
+  FetchContent_MakeAvailable(benchmark)
+endif()
+
 # Set the default build type if one wasn't specified.
 # https://www.kitware.com//cmake-and-the-default-build-type/
 #

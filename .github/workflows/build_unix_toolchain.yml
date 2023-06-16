@@ -17,7 +17,7 @@ jobs:
       - name: Install toolchain build dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: build-essential ninja-build clang llvm re2c
+          packages: build-essential ninja-build clang llvm lld re2c
           version: 1.0
 
       - name: Clone repository
@@ -27,7 +27,11 @@ jobs:
         working-directory: ${{ github.workspace }}/toolchains/unix
         run: |
           sh build_toolchain.sh \
-             --staging-dir=staging \
-             --target-dir=target \
              --use-lto \
-             --verbose \
+             --verbose
+
+      - name: Publish toolchain artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: samething-toolchain-linux
+          path: ${{ github.workspace }}/toolchains/unix/samething-toolchain-linux.tar.gz

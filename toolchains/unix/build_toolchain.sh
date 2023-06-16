@@ -22,31 +22,39 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# This script is to be used to build a toolchain suitable for developing and
-# deploying samething. It is to be used on certain host Unix(-like) systems.
+# WARNING: This script is only meant to be executed by the CI pipeline. Please
+# do not run it yourself; execute the `fetch_toolchain.sh` script instead.
 
+# This script builds a toolchain suitable for development and deployment of
+# samething. The resulting toolchain is suitable for use on these Unix(-like)
+# systems:
+#
+# - Linux
+#
 # When pushing a commit, CI will check if this toolchain script has been
 # changed. If it has, the toolchain is rebuilt.
 #
 # To reduce memory usage and have a faster compilation speed of the toolchain,
 # all software is compiled with LLVM, except gcc.
-
 llvm_ver="16.0.5"
 gcc_ver="13.0.1"
 cmake_ver="3.26.4"
 ninja_ver="1.11.1"
-qt_ver="6.5.0"
+qt_ver="6.5.1"
 
 # The architectures which are supported by the toolchain.
 supported_archs="AArch64 X86"
 
 project_name="samething"
 
+# The name of the tarball to generate. 
+tarball_name="samething-linux-toolchain.tar.gz"
+
 # Directory where the build takes place.
-staging_dir=""
+staging_dir="staging"
 
 # Directory where the toolchain is stored.
-target_dir=""
+assets_dir="assets"
 
 # Do not suppress console output of external programs.
 verbose=false
@@ -57,6 +65,11 @@ use_lto=false
 # Enable profile-guided optimization (PGO).
 use_pgo=false
 
+create_directory() {
+  mkdir "$1" || exit
+  echo "Created directory ${1}..."
+}
+
 tarball_extract() {
   extract_flags="xf"
 
@@ -64,9 +77,7 @@ tarball_extract() {
     extract_flags="${extract_flags}v"
   fi
 
-  if ! tar "${extract_flags}" "$1"; then
-    exit 1
-  fi
+  tar "${extract_flags}" "$1" || exit
 }
 
 download_file() {
@@ -76,66 +87,26 @@ download_file() {
     curl_flags="${curl_flags}s"
   fi
 
-  if ! curl "${curl_flags}" "$1"; then
-    exit 1
-  fi
+  curl "${curl_flags}" "$1" || exit
 }
 
 command_line_arguments_handle() {
   # https://mywiki.wooledge.org/BashFAQ/035
   while :; do
     case $1 in
-      -h|-\?|--help)
+      -\?|--help)
         usage 0
         ;;
 
-      -s|--staging-dir)
-        if [ -z "$2" ]; then
-          printf '"--staging-dir" requires a path.\n' >&2
-	  exit 1
-	else
-          staging_dir=$2
-          shift
-	fi
-        ;;
-
-      --staging-dir=?*)
-        staging_dir=${1#*=}
-        ;;
-
-      --staging_dir=)
-        printf '"--staging-dir" requires a path.\n' >&2
-        exit 1
-        ;;
-
-      -t|--target-dir)
-        if [ -z "$2" ]; then
-          printf '"--target-dir" requires a path.\n' >&2
-          exit 1
-        else
-          target_dir=$2
-          shift
-        fi
-	;;
-
-      --target-dir=?*)
-        target_dir=${1#*=}
-	;;
-
-      --target-dir=)
-        printf '"--target-dir" requires a path.\n' >&2
-	exit 1
-	;;
-
-      -l|--use-lto)
+      --use-lto)
         use_lto=true
         ;;
 
-      -p|--use-pgo)
+      --use-pgo)
         use_pgo=true
         ;;
 
-      -v|--verbose)
+      --verbose)
         verbose=true
 	;;
 
@@ -153,16 +124,6 @@ command_line_arguments_handle() {
     esac
     shift
   done
-
-  if [ -z "$staging_dir" ]; then
-    echo "Staging directory not specified." >&2
-    usage 1
-  fi
-
-  if [ -z "$target_dir" ]; then
-    echo "Target directory not specified." >&2
-    usage 1
-  fi
 
   case $verbose in
     true)
@@ -186,35 +147,19 @@ cmake_build() {
   echo "Extracting CMake v${cmake_ver}..."
   tarball_extract "cmake-${cmake_ver}.tar.gz"
 
-  if ! cd "cmake-${cmake_ver}"; then
-    exit 1
-  fi
-
+  cd "cmake-${cmake_ver}" || exit
   echo "Configuring CMake v${cmake_ver}, please wait..."
 
   if [ "$use_lto" = true ]; then
     set -- "$@" "-DCMake_BUILD_LTO:BOOL=ON"
   fi
 
-  if ! LDFLAGS='-fuse-ld=lld' V cmake -S . -B build -G Ninja "$@"; then
-    exit 1
-  fi
-
+  LDFLAGS='-fuse-ld=lld' V cmake -S . -B build -G Ninja "$@" || exit
   echo "Building and installing CMake v${cmake_ver}, this may take a while."
-
-  if ! cd build; then
-    exit 1
-  fi
-
-  if ! V ninja install; then
-    exit 1
-  fi
-
+  cd build || exit
+  V ninja install || exit
   echo "Installation of CMake v${cmake_ver} complete."
-
-  if ! cd "${staging_dir}"; then
-    exit 1
-  fi
+  cd "${staging_dir}" || exit
 }
 
 ninja_build() {
@@ -224,31 +169,16 @@ ninja_build() {
   echo "Extracting ninja v${ninja_ver}..."
   tarball_extract "v${ninja_ver}.tar.gz"
 
-  if ! cd "ninja-${ninja_ver}"; then
-    exit 1
-  fi
-
+  cd "ninja-${ninja_ver}" || exit
   echo "Configuring ninja v${ninja_ver}, please wait..."
 
-  if ! LDFLAGS='-fuse-ld=lld' V cmake -S . -B build -G Ninja "$@"; then
-    exit 1
-  fi
-
+  LDFLAGS='-fuse-ld=lld' V cmake -S . -B build -G Ninja "$@" || exit
   echo "Building and installing ninja v${ninja_ver}, this may take a while."
 
-  if ! cd build; then
-    exit 1
-  fi
-
-  if ! V ninja install; then
-    exit 1
-  fi
-
+  cd build || exit
+  V ninja install || exit
   echo "Installation of ninja v${ninja_ver} complete."
-
-  if ! cd "${staging_dir}"; then
-    exit 1
-  fi
+  cd "${staging_dir}" || exit
 }
 
 llvm_build() {
@@ -258,37 +188,31 @@ llvm_build() {
   echo "Extracting LLVM ${llvm_ver}..."
   tarball_extract "llvm-project-${llvm_ver}.src.tar.xz"
 
-  if ! cp ../cmake/llvm-stage1.cmake llvm-project-${llvm_ver}.src/clang/cmake/caches; then
-    exit 1
-  fi
-
-  if ! cp ../cmake/llvm-stage2.cmake llvm-project-${llvm_ver}.src/clang/cmake/caches; then
-    exit 1
-  fi
-
-  if ! cd llvm-project-${llvm_ver}.src; then
-    exit 1
-  fi
+  cp ../cmake/llvm-stage1.cmake llvm-project-${llvm_ver}.src/clang/cmake/caches || exit
+  cp ../cmake/llvm-stage2.cmake llvm-project-${llvm_ver}.src/clang/cmake/caches || exit
+  cd llvm-project-${llvm_ver}.src || exit
 
   if [ "$use_lto" = true ]; then
     set -- "$@" "-DSAMETHING_TOOLCHAIN_ENABLE_LTO:BOOL=ON"
   fi
 
-  if ! LDFLAGS='-fuse-ld=lld' V cmake -S llvm -B build -G Ninja -C clang/cmake/caches/llvm-stage1.cmake "$@"; then
-    exit 1
-  fi
+  LDFLAGS='-fuse-ld=lld' V cmake -S llvm -B build -G Ninja -C clang/cmake/caches/llvm-stage1.cmake "$@" || exit
+  cd build || exit
 
-  if ! cd build; then
-    exit 1
-  fi
+  echo "Building LLVM ${llvm_ver}, this will take a long time..."
+  V ninja stage2-distribution || exit
 
-  if ! V ninja stage2-distribution; then
-    exit 1
-  fi
+  echo "Installing LLVM ${llvm_ver}..."
+  V ninja stage2-install-distribution-stripped || exit
 
-  if ! V ninja stage2-install-distribution-stripped; then
-    exit 1
-  fi
+  echo "Installation of LLVM ${llvm_ver} complete."
+  cd "${staging_dir}" || exit
+}
+
+tarball_create() {
+  cd "${staging_dir}"/.. || exit
+  echo "Creating toolchain deployment tarball..."
+  tar czf "${tarball_name}" "assets" || exit
 }
 
 usage() {
@@ -297,78 +221,56 @@ Usage: ./build_toolchain.sh [OPTIONS]
 
 Builds a toolchain suitable for development and deployment of ${project_name}.
 
-Required arguments:
-
-  --staging-dir=STAGINGDIR    Directory where the build takes place.
-  --target-dir=TARGETDIR      Directory where the toolchain is stored.
+This script should only be executed by the CI pipeline. If you are not the CI
+pipeline, execute the "fetch_toolchain.sh" script instead.
 
 Optional arguments:
-  -l, --use-lto       Compile the toolchain with link-time optimization
-                      where appropriate. The toolchain will be faster,
-                      but the build time will be much slower and much
-                      more intensive on the host. Default is off.
-  -p, --use-pgo       Compile the toolchain with profile-guided
-                      optimization where appropriate. The toolchain
-		      will be faster, but the build time will be much
-                      slower and much more intensive on the host.
-                      Default is off.
-  -v, --verbose       Do not suppress console output of external
-                      programs; default is off.
+  --use-lto       Compile the toolchain with link-time optimization where
+                  appropriate. The toolchain will be faster, but the build time
+		  will be much slower and much more intensive on the host.
+		  Default is off.
+  --use-pgo       Compile the toolchain with profile-guided optimization where
+                  appropriate. The toolchain will be faster, but the build time
+		  will be much slower and much more intensive on the host.
+		  Default is off.
+  --verbose       Do not suppress console output of external programs; default
+                  is off.
 EOF
   exit "$1"
 }
 
 check_required() {
-  for required in cmake ninja gcc clang lld; do
+  all_commands_found=true
+
+  for required in cmake ninja gcc clang lld re2c; do
     if ! command -v "$required" >/dev/null; then
       echo "Required command ${required} not found."
-      "$required" >&2
-      set -- "$@"
-      "$required"
+      all_commands_found=false
     fi
   done
 
-  if [ $# -gt 0 ]; then
-    cat <<-EOF >&2
-ERROR: One or more required software packages were not detected on your system.
-This software is necessary to bootstrap the toolchain. It is highly recommended
-that you consult your distribution's package manager to install the required
-software. This script will not install the software for you as there are too
-many package managers to account for to reasonably automate this process. If you
-are unable to install the required software, your only alternative is to
-download a prebuilt toolchain.
-
-Required software:
-
-* CMake - https://cmake.org/
-* GCC   - https://gcc.gnu.org/
-* LLVM  - https://llvm.org/
-* Ninja - https://ninja-build.org/
-EOF
+  if [ "${all_commands_found}" = false ]; then
+    exit 1
   fi
 }
 
-if [ "$(id -u)" -eq 0 ]; then
-  cat <<-EOF >&2
-WARNING: You appear to be running this script as a superuser. It is
-adviseable, though not required, to run this script as a non-privileged user.
-
-EOF
+if [ ! -f "build_toolchain.sh" ]; then
+  echo "Working directory is not correct."
+  exit 1
 fi
 
 command_line_arguments_handle "$@"
 check_required
 
-staging_dir=$(realpath "${staging_dir}")
-target_dir=$(realpath "${target_dir}")
+staging_dir=$(cd "$(dirname "${staging_dir}")" || exit; pwd)/$(basename "${staging_dir}")
+assets_dir=$(cd "$(dirname "${assets_dir}")" || exit; pwd)/$(basename "${assets_dir}")
 
-mkdir -v "${staging_dir}"
-mkdir -v "${target_dir}"
+create_directory "${staging_dir}"
+create_directory "${assets_dir}"
+cd "${staging_dir}" || exit
 
-if ! cd "${staging_dir}"; then
-  exit 1
-fi
-
-cmake_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=${target_dir}/cmake" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
-ninja_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=${target_dir}/ninja" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
-llvm_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=""${target_dir}""/llvm" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
+cmake_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=""${assets_dir}""/cmake" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
+ninja_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=""${assets_dir}""/ninja" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
+llvm_build -DCMAKE_BUILD_TYPE:STRING=Release "-DCMAKE_INSTALL_PREFIX:STRING=""${assets_dir}""/llvm" -DCMAKE_C_COMPILER:STRING="clang" -DCMAKE_CXX_COMPILER:STRING="clang++"
+tarball_create
+echo "Toolchain build complete."
