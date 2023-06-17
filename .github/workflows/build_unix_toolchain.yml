@@ -35,3 +35,4 @@ jobs:
         with:
           name: samething-toolchain-linux
           path: ${{ github.workspace }}/toolchains/unix/samething-toolchain-linux.tar.gz
+          if-no-files-found: error

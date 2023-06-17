@@ -48,7 +48,7 @@ supported_archs="AArch64 X86"
 project_name="samething"
 
 # The name of the tarball to generate. 
-tarball_name="samething-linux-toolchain.tar.gz"
+tarball_name="samething-toolchain-linux.tar.gz"
 
 # Directory where the build takes place.
 staging_dir="staging"
