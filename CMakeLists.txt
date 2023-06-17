@@ -85,7 +85,7 @@ if (SAMETHING_BUILD_BENCHMARKS)
 endif()
 
 # Set the default build type if one wasn't specified.
-# https://www.kitware.com//cmake-and-the-default-build-type/
+# https://www.kitware.com/cmake-and-the-default-build-type/
 #
 # For development, this is set to "Debug".
 # For deployed production releases, this is set to "Release".
