@@ -47,3 +47,7 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+
+# Do not allow toolchain staging artifacts or assets.
+toolchains/unix/assets/**
+toolchains/unix/staging/**
