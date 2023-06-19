@@ -2,8 +2,8 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 26,
-    "patch": 4
+    "minor": 25,
+    "patch": 2
   },
   "configurePresets": [
     {
@@ -26,8 +26,8 @@
       "inherits": "default",
       "condition": {
         "type": "equals",
-	"lhs": "${hostSystemName}",
-	"rhs": "Linux"
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       },
       "cmakeExecutable": "${sourceDir}/toolchains/unix/assets/cmake/bin/cmake",
       "environment": {
@@ -42,12 +42,12 @@
       "cacheVariables": {
         "SAMETHING_BUILD_QT_FRONTEND": {
           "type": "BOOL",
-	  "value": "ON"
+          "value": "ON"
         },
-	"SAMETHING_COMPILER_SUITE": {
+        "SAMETHING_COMPILER_SUITE": {
           "type": "STRING",
-	  "value": "LLVM"
-	}
+          "value": "LLVM"
+        }
       }
     }
   ],
